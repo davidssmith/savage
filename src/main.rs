@@ -185,19 +185,20 @@ impl Board {
         );
     }
 
-    fn put_piece(&self, c: char, x: i32, y: i32) {
+    fn put_piece(&self, c: char, x: i32, y: i32) -> io::Result<()> {
         println!(
             "<svg x='{}' y='{}' width='{}' height='{}'>",
             x, y, self.units, self.units
         );
         if c.is_uppercase() {
             let path = format!("svg/{}/w{}.svg", self.pieces, c);
-            cat(&path);
+            cat(&path)?;
         } else {
             let path = format!("svg/{}/b{}.svg", self.pieces, c);
-            cat(&path);
+            cat(&path)?;
         }
         println!("</svg>");
+        Ok(())
     }
 
     fn put_move_indicator(&self) {
