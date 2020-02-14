@@ -9,7 +9,7 @@ enum Side {
 
 #[derive(Debug)]
 struct Board {
-    fen: &'static str,
+    fen: String,
 
     units: i32, // relative size of a square
     //board: usize, // = 8*units
@@ -17,11 +17,11 @@ struct Board {
     margin: i32,
     border: i32,
 
-    font: &'static str,
+    font: String,
     font_size: i32,
-    pieces: &'static str,
-    color_light: &'static str,
-    color_dark: &'static str,
+    pieces: String,
+    color_light: String,
+    color_dark: String,
 
     show_coords: bool,
     flip: bool,
@@ -31,16 +31,16 @@ struct Board {
 
 impl Default for Board {
     fn default() -> Self {
-        let fen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+        let fen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1".to_owned();
         let units: i32 = 64;
         let corner_radius: i32 = 0;
         let margin: i32 = 48;
         let border: i32 = 2;
-        let font = "sans-serif";
+        let font = "sans-serif".to_owned();
         let font_size: i32 = 20;
-        let pieces = "merida";
-        let color_light = "a48c62";
-        let color_dark = "846c40";
+        let pieces = "merida".to_owned();
+        let color_light = "a48c62".to_owned();
+        let color_dark = "846c40".to_owned();
         let show_coords = false;
         let flip = false;
         let show_indicator = false;
@@ -74,10 +74,6 @@ fn cat(filename: &str) -> io::Result<()> {
 }
 
 impl Board {
-    fn new() -> Board {
-        Board::default()
-    }
-
     fn side_to_move(&self) -> Option<Side> {
         // find first space in FEN, then first char after that
         // is the side to move. Check if that char is 'w'.
@@ -98,20 +94,20 @@ impl Board {
     }
 
     fn put_svg_header(&self) {
-        let N = self.units * 8 + 2 * self.margin;
+        let nouter = self.units * 8 + 2 * self.margin;
         println!(
             "<?xml version='1.0' encoding='utf-8'?>\n\
            <svg viewBox='0 0 {} {}' style='background-color:#ffffff00' version='1.1' \
            xmlns='http://www.w3.org/2000/svg' xmlns:xlink='http://www.w3.org/1999/xlink' \
            xml:space='preserve' x='0px' y='0px' width='{}' height='{}'>",
-            N, N, N, N
+            nouter, nouter, nouter, nouter
         );
         println!("<!-- Creator: Savage, Copyright 2020 David S. Smith <david.smith@gmail.com> -->");
         println!("<!-- FEN: {} -->", self.fen);
     }
 
-    fn put_squares(&self) {
-        let N = 8 * self.units;
+    fn put_squares(&mut self) {
+        let nouter = 8 * self.units;
         println!("<!-- DARK SQUARES -->");
         if self.grayscale {
             // cross hatched:
@@ -130,14 +126,14 @@ impl Board {
 				</pattern>");
             println!(
                 "<rect x='{}' y='{}' width='{}' height='{}' fill='url(#crosshatch)' />",
-                self.margin, self.margin, N, N
+                self.margin, self.margin, nouter, nouter
             );
-            let color_light = "fff";
+            self.color_light = "fff".to_owned();
         } else {
             // shaded
             println!(
                 "<rect x='{}' y='{}' width='{}' height='{}' fill='#{}' />",
-                self.margin, self.margin, N, N, self.color_dark
+                self.margin, self.margin, nouter, nouter, self.color_dark
             );
         }
 
@@ -155,7 +151,7 @@ impl Board {
         println!("</pattern>");
         println!(
             "<rect x='{}' y='{}' width='{}' height='{}' fill='url(#checkerboard)' />",
-            self.margin, self.margin, N, N
+            self.margin, self.margin, nouter, nouter
         );
     }
 
@@ -165,23 +161,23 @@ impl Board {
         println!("<!-- BORDER -->");
         let mut n = self.margin - t;
         let board = 8 * self.units;
-        let mut N = board + 2 * t;
+        let mut nouter = board + 2 * t;
         println!(
             "<rect x='{}' y='{}' width='{}' height='{}' fill='none' \
             stroke-width='{}' stroke-location='outside' stroke='#fff' rx='{}' ry='{}' />",
-            n, n, N, N, t, r, r
+            n, n, nouter, nouter, t, r, r
         );
         if self.border == 1 {
             n -= self.border;
-            N += 2 * self.border;
+            nouter += 2 * self.border;
         } else {
             n -= self.border / 2;
-            N += self.border;
+            nouter += self.border;
         }
         println!(
             "<rect x='{}' y='{}' width='{}' height='{}' fill='none' \
             stroke-width='{}' stroke-location='outside' stroke='#000' rx='{}' ry='{}' />",
-            n, n, N, N, self.border, r, r
+            n, n, nouter, nouter, self.border, r, r
         );
     }
 
@@ -275,7 +271,7 @@ impl Board {
         print!("<!-- PIECES -->");
         for f in self.fen.chars() {
             if f.is_alphabetic() {
-                self.put_piece(f, x, y);
+                self.put_piece(f, x, y).unwrap();
                 x += step;
             } else if f.is_numeric() {
                 x += step * f.to_digit(10).unwrap() as i32;
@@ -299,76 +295,45 @@ impl Board {
     }
 }
 
-fn print_usage() {
-    let b = Board::default();
-    eprintln!("Usage: svgboard [-c] [-g] [-h] [-p <pieces>] [-r]");
-    eprintln!("\t-b\t\t border thickness (default: {})", b.border);
-    eprintln!("\t-c\t\t turn on coordinates (default: {})", b.show_coords);
-    eprintln!("\t-d\t\t dark square color (default: {})", b.color_dark);
-    eprintln!("\t-f\t\t font size (default: {})", b.font_size);
-    eprintln!("\t-F\t\t font name (default: {})", b.font);
-    eprintln!("\t-g\t\t grayscale, suitable for print");
-    eprintln!("\t-i\t\t show side-to-move indicator");
-    eprintln!("\t-l\t\t light square color (default: {})", b.color_light);
-    eprintln!("\t-m\t\t margin size (default: {})", b.margin);
-    eprintln!("\t-p <pieces>\t pieces to use (default: {})", b.pieces);
-    eprintln!("\t-r \t\t flip if black to move instead of indicator\n");
-    eprintln!("\t-s \t\t square size (default: {})", b.units);
-}
 
 fn main() -> io::Result<()> {
-    let mut b = Board::new();
+    use argparse::{ArgumentParser, Store, StoreTrue};
+    let mut b = Board::default();
+    let mut output = String::new();
+    {
+        let mut ap = ArgumentParser::new();
+        ap.set_description("SVG chess board creator");
+        ap.refer(&mut b.border)
+            .add_option(&["-b", "--border"], Store, "border width");
+        ap.refer(&mut b.show_coords)
+            .add_option(&["-c", "--coords"], StoreTrue, "display coordinates");
+        ap.refer(&mut b.color_dark)
+            .add_option(&["-d", "--color-dark"], Store, "RGB hex color of dark squares");
+        ap.refer(&mut b.font)
+            .add_option(&["-F", "--font"], Store, "font face");
+        ap.refer(&mut b.font_size)
+            .add_option(&["-f", "--font-size"], Store, "font size (pts)");
+        ap.refer(&mut b.grayscale)
+            .add_option(&["-g", "--grayscale"], StoreTrue, "grayscale");
+        ap.refer(&mut b.show_indicator)
+            .add_option(&["-i", "--indicator"], StoreTrue, "show move indicator");
+        ap.refer(&mut b.color_light)
+            .add_option(&["-l", "--color-light"], Store, "RGB hex color of light squares");
+        ap.refer(&mut b.margin)
+            .add_option(&["-m", "--margin"], Store, "margin width");
+        ap.refer(&mut b.pieces)
+            .add_option(&["-p", "--pieces"], Store, "pieces theme");
+        ap.refer(&mut b.flip)
+            .add_option(&["-r", "--flip"], StoreTrue, "flip board to black side down");
+        ap.refer(&mut b.units)
+            .add_option(&["-s", "--units"], Store, "length units, image scale");
+        ap.refer(&mut b.fen)
+            .add_argument("FEN", Store, "FEN board position (default: start position)");
+        ap.refer(&mut output)
+            .add_argument("output", Store, "output SVG file (default: stdout)");
+        ap.parse_args_or_exit();
+    }
+    //TODO: redirect output to file
     b.build_board();
-    //println!("{:?}", b);
-    //
-    // while ((c = getopt(argc, argv, "b:cd:f:F:gil:m:p:rs:h")) != -1)
-    // {
-    //     switch (c) {
-    //     case 'b':
-    //         border = atoi(optarg);
-    //         break;
-    //     case 'c':
-    //         self.coords = 1;
-    //         break;
-    //     case 'd':
-    //         strlcpy(color_dark, optarg, 9);
-    //         break;
-    //     case 'F':
-    //         strlcpy(font, optarg, 64);
-    //         break;
-    //     case 'f':
-    //         fontsize = atoi(optarg);
-    //         break;
-    //     case 'g':
-    //         self.grayscale = 1;
-    //         break;
-    //     case 'i':
-    //         self.indicator = 1;
-    //         break;
-    //     case 'l':
-    //         strlcpy(color_light, optarg, 9);
-    //         break;
-    //     case 'm':
-    //         margin = atoi(optarg);
-    //         break;
-    //     case 'p':
-    //         strlcpy(pieces, optarg, sizeof pieces);
-    //         break;
-    //     case 'r':
-    //         self.flip = 1;
-    //         break;
-    //     case 's':
-    //         units = atoi(optarg);
-    //         break;
-    //     case 'h':
-    //     default:
-    //         print_usage();
-    //         return 1;
-    //     }
-    // }
-    // argc -= optind;
-    // argv += optind;
-    // build_board(argc > 0 ? *argv : startfen);
-
     Ok(())
 }
